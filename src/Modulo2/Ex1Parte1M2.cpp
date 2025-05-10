@@ -108,6 +108,10 @@ int main()
 
 	vector<GLuint> VAOs;
 	VAOs.push_back(createTriangle(-0.65, 0.33, -0.27, 0.53, -0.61, 0.79));
+	VAOs.push_back(createTriangle(-0.5, 0.2, -0.1, 0.2, -0.3, 0.4));
+	VAOs.push_back(createTriangle(0.05, 0.05, 0.85, 0.05, 0.5, 0.8));
+	VAOs.push_back(createTriangle(-0.05, -0.05, -0.85, -0.05, -0.5, -0.8));
+	VAOs.push_back(createTriangle(0.15, -0.85, 0.85, -0.85, 0.85, -0.25));
 	
 	glUseProgram(shaderID);
 
