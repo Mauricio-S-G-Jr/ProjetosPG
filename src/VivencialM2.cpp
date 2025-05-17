@@ -150,7 +150,7 @@ int main()
 	
 	GLuint VAO = createTriangle(-0.5,-0.5,0.5,-0.5,0.0,0.5);
 	
-
+	
 
 	glUseProgram(shaderID);
 
@@ -188,7 +188,7 @@ int main()
 
 			model = rotate(model,radians(180.0f),vec3(0.0,0.0,1.0));
 			// Escala
-			//model = scale(model,vec3(triangles[i].dimensions.x,triangles[i].dimensions.y,1.0));
+			model = scale(model,vec3(triangles[i].dimensions.x,triangles[i].dimensions.y,1.0));
 			glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, value_ptr(model));
 
 			glUniform4f(colorLoc, triangles[i].color.r, triangles[i].color.g, triangles[i].color.b, 1.0f); // enviando cor para variável uniform inputColor
@@ -386,10 +386,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		pointM.push_back(xpos);
 		pointM.push_back(ypos);
 		if((pointM.size()%6) == 0){
-			cout << "entrou";
+			
 			Triangle tri;
 			tri.position = vec3(xpos,ypos,0.0);
-			//tri.dimensions = vec3(100.0,100.0,1.0);
+			tri.dimensions = vec3(100.0,100.0,1.0);
 			tri.color = vec3(colors[iColor].r, colors[iColor].g, colors[iColor].b);
 			iColor = (iColor + 1) % colors.size();
 			triangles.push_back(tri);
