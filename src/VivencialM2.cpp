@@ -4,7 +4,7 @@
  * para a disciplina de Processamento Gráfico - Unisinos
  * Versão inicial: 7/4/2017
  * Última atualização em 13/08/2024
- *
+ *	Modificado por Mauricio Savegnago Gonçalves Junior em 18/05/2025
  */
 
 #include <iostream>
@@ -67,14 +67,14 @@ void main()
 
 struct Triangle 
 {
-	vec3 position;
+	float positions[6];
 	vec3 dimensions;
 	vec3 color;
 };
 
 vector<Triangle> triangles;
 
-vector<double> pointM;
+vector<GLuint> VAOs;
 
 vector <vec3> colors;
 int iColor = 0;
@@ -147,11 +147,6 @@ int main()
 	// Compilando e buildando o programa de shader
 	GLuint shaderID = setupShader();
 
-	
-	GLuint VAO = createTriangle(-0.5,-0.5,0.5,-0.5,0.0,0.5);
-	
-	
-
 	glUseProgram(shaderID);
 
 	// Enviando a cor desejada (vec4) para o fragment shader
@@ -177,20 +172,14 @@ int main()
 		glLineWidth(10);
 		glPointSize(20);
 
-		glBindVertexArray(VAO); // Conectando ao buffer de geometria
 
 		for (int i = 0; i < triangles.size(); i++)
 		{
 			// Matriz de modelo: transformações na geometria (objeto)
 			mat4 model = mat4(1); // matriz identidade
-			// Translação
-			model = translate(model,vec3(triangles[i].position.x,triangles[i].position.y,0.0));
 
-			model = rotate(model,radians(180.0f),vec3(0.0,0.0,1.0));
-			// Escala
-			model = scale(model,vec3(triangles[i].dimensions.x,triangles[i].dimensions.y,1.0));
 			glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, value_ptr(model));
-
+			glBindVertexArray(VAOs[i]);
 			glUniform4f(colorLoc, triangles[i].color.r, triangles[i].color.g, triangles[i].color.b, 1.0f); // enviando cor para variável uniform inputColor
 			// Chamada de desenho - drawcall
 			// Poligono Preenchido - GL_TRIANGLES
@@ -375,6 +364,9 @@ GLuint createTriangle(float x0, float y0, float x1, float y1, float x2, float y2
 	return VAO;
 }
 
+int count = 0;
+float verticesList[6];
+
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -383,16 +375,28 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		glfwGetCursorPos(window, &xpos, &ypos);
 		cout << xpos << "  " << ypos << endl;
 
-		pointM.push_back(xpos);
-		pointM.push_back(ypos);
-		if((pointM.size()%6) == 0){
-			
+		
+		verticesList[count] = xpos;
+		count ++;
+		verticesList[count] = ypos;
+		count ++;
+		
+		if(count == 6){
 			Triangle tri;
-			tri.position = vec3(xpos,ypos,0.0);
-			tri.dimensions = vec3(100.0,100.0,1.0);
+			tri.positions[0] = verticesList[0];
+			tri.positions[1] = verticesList[1];
+			tri.positions[2] = verticesList[2];
+			tri.positions[3] = verticesList[3];
+			tri.positions[4] = verticesList[4];
+			tri.positions[5] = verticesList[5];
+
+			VAOs.push_back(createTriangle(tri.positions[0], tri.positions[1], tri.positions[2], tri.positions[3], tri.positions[4], tri.positions[5]));
+			//tri.dimensions = vec3(100.0,100.0,1.0);
 			tri.color = vec3(colors[iColor].r, colors[iColor].g, colors[iColor].b);
 			iColor = (iColor + 1) % colors.size();
 			triangles.push_back(tri);
+			count = 0;
+			
 		}
 		
 	}
