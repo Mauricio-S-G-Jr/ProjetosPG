@@ -28,18 +28,24 @@ using namespace std;
 using namespace glm;
 
 #include <cmath>
+#include <ctime>
 
 // Protótipo da função de callback de teclado
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
 
 // Protótipos das funções
 GLuint createQuad();
 int setupShader();
 int setupGeometry();
+void createGrid();
+void eliminarSimilares(float tolerancia);
 
 // Dimensões da janela (pode ser alterado em tempo de execução)
 const GLuint WIDTH = 800, HEIGHT = 600;
+const GLuint ROWS = 6, COLS = 8;
+const GLuint QUAD_WIDTH = 100, QUAD_HEIGHT = 100;
+const float dMax = sqrt(3.0);
 
 // Código fonte do Vertex Shader (em GLSL): ainda hardcoded
 const GLchar *vertexShaderSource = R"(
@@ -70,17 +76,49 @@ struct Quad
 	vec3 position;
 	vec3 dimensions;
 	vec3 color;
+	bool eliminated;
 };
 
 vector<Quad> triangles;
 
-vector <vec3> colors;
+vector<vec3> colors;
 int iColor = 0;
+int iSelected = -1;
+int tam = ROWS * COLS;
+int countEliminated = 0;
+int pontos = tam;
+
+// Criação da grid de quadrados
+Quad grid[ROWS][COLS];
+
+void createGrid()
+{
+	for (int i = 0; i < ROWS; i++)
+	{
+		for (int j = 0; j < COLS; j++)
+		{
+			Quad quad;
+			vec2 ini_pos = vec2(QUAD_WIDTH / 2, QUAD_HEIGHT / 2);
+			quad.position = vec3(ini_pos.x + j * QUAD_WIDTH, ini_pos.y + i * QUAD_HEIGHT, 0.0);
+			quad.dimensions = vec3(QUAD_WIDTH, QUAD_HEIGHT, 1.0);
+			float r, g, b;
+			r = rand() % 256 / 255.0;
+			g = rand() % 256 / 255.0;
+			b = rand() % 256 / 255.0;
+			quad.color = vec3(r, g, b);
+			quad.eliminated = false;
+			grid[i][j] = quad;
+		}
+	}
+}
 
 // Função MAIN
 int main()
 {
-	srand(glfwGetTime());
+	//srand(glfwGetTime()); TODO - Ver como transformar em unsigned int
+	srand(time(0));
+
+	cout << "Pontos: " << pontos << endl;
 
 	// Inicialização da GLFW
 	glfwInit();
@@ -99,7 +137,7 @@ int main()
 	// #endif
 
 	// Criação da janela GLFW
-	GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Ola Triangulo! -- Rossana", nullptr, nullptr);
+	GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Jogo das cores! ❤️🩷🧡💛💚", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
 	// Fazendo o registro da função de callback para a janela GLFW
@@ -115,8 +153,6 @@ int main()
 	// Obtendo as informações de versão
 	const GLubyte *renderer = glGetString(GL_RENDERER); /* get renderer string */
 	const GLubyte *version = glGetString(GL_VERSION);	/* version as a string */
-	cout << "Renderer: " << renderer << endl;
-	cout << "OpenGL version supported " << version << endl;
 
 	// Definindo as dimensões da viewport com as mesmas dimensões da janela da aplicação
 	int width, height;
@@ -126,16 +162,16 @@ int main()
 	// Compilando e buildando o programa de shader
 	GLuint shaderID = setupShader();
 
-	
 	GLuint VAO = createQuad();
-	
+
+	// Inicializar a grid
+	createGrid();
 	// Triangle tri;
 	// tri.position = vec3(400.0,300.0,0.0);
 	// tri.dimensions = vec3(100.0,100.0,1.0);
 	// tri.color = vec3(colors[iColor].r, colors[iColor].g, colors[iColor].b);
 	// iColor = (iColor + 1) % colors.size();
 	// triangles.push_back(tri);
-
 
 	glUseProgram(shaderID);
 
@@ -164,27 +200,43 @@ int main()
 
 		glBindVertexArray(VAO); // Conectando ao buffer de geometria
 
-		//for (int i = 0; i < triangles.size(); i++)
-		//{
-			// Matriz de modelo: transformações na geometria (objeto)
-			mat4 model = mat4(1); // matriz identidade
-			// Translação
-			model = translate(model,vec3(400,300,0.0));
-
-			//model = rotate(model,radians(180.0f),vec3(0.0,0.0,1.0));
-			// Escala
-			model = scale(model,vec3(100,100,1.0));
-			glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, value_ptr(model));
-
-			float r,g,b;
-			r = rand() % 256 / 255.0;
-			g = rand() % 256 / 255.0;
-			b = rand() % 256 / 255.0;
-			glUniform4f(colorLoc, r, g, b, 1.0f); // enviando cor para variável uniform inputColor
-			// Chamada de desenho - drawcall
-			// Poligono Preenchido - GL_TRIANGLES
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
-		//}
+		if (iSelected > -1)
+		{
+			eliminarSimilares(0.2);
+			pontos--;
+			cout << "Pontos: " << pontos << endl;
+		}
+		if(countEliminated == tam)
+		{
+			cout << "Total de Pontos: " << pontos << endl;
+			pontos = tam;
+			createGrid();
+		}
+		countEliminated = 0;
+		for (int i = 0; i < ROWS; i++)
+		{
+			for (int j = 0; j < COLS; j++)
+			{
+				if (grid[i][j].eliminated)
+				{
+					countEliminated++;
+				}
+				if (!grid[i][j].eliminated)
+				{
+					// Matriz de modelo: transformações na geometria (objeto)
+					mat4 model = mat4(1); // matriz identidade
+					// Translação
+					model = translate(model, grid[i][j].position);
+					//  Escala
+					model = scale(model, grid[i][j].dimensions);
+					glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, value_ptr(model));
+					glUniform4f(colorLoc, grid[i][j].color.r, grid[i][j].color.g, grid[i][j].color.b, 1.0f); // enviando cor para variável uniform inputColor
+					// Chamada de desenho - drawcall
+					// Poligono Preenchido - GL_TRIANGLES
+					glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
+				}
+			}
+		}
 
 		glBindVertexArray(0); // Desconectando o buffer de geometria
 
@@ -192,7 +244,7 @@ int main()
 		glfwSwapBuffers(window);
 	}
 	// Pede pra OpenGL desalocar os buffers
-	//glDeleteVertexArrays(1, &VAO);
+	// glDeleteVertexArrays(1, &VAO);
 	// Finaliza a execução da GLFW, limpando os recursos alocados por ela
 	glfwTerminate();
 	return 0;
@@ -210,7 +262,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 // Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
 //  shader simples e único neste exemplo de código
 //  O código fonte do vertex e fragment shader está nos arrays vertexShaderSource e
-//  fragmentShader source no iniçio deste arquivo
+//  fragmentShader source no inicio deste arquivo
 //  A função retorna o identificador do programa de shader
 int setupShader()
 {
@@ -259,13 +311,16 @@ int setupShader()
 	return shaderProgram;
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-    {
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
-		cout << xpos << "  " << ypos << endl;	
+		int x = xpos / QUAD_WIDTH;
+		int y = ypos / QUAD_HEIGHT;
+		grid[y][x].eliminated = true;
+		iSelected = x + y * COLS; //indice linear do quadrado selecionado
 	}
 }
 
@@ -276,10 +331,10 @@ GLuint createQuad()
 	GLfloat vertices[] = {
 		// x    y    z
 		// T0
-		-0.5,  0.5, 0.0, // v0
+		-0.5, 0.5, 0.0,	 // v0
 		-0.5, -0.5, 0.0, // v1
-		 0.5,  0.5, 0.0, // v2
-		 0.5, -0.5, 0.0  // v3
+		0.5, 0.5, 0.0,	 // v2
+		0.5, -0.5, 0.0	 // v3
 	};
 
 	GLuint VBO;
@@ -313,5 +368,27 @@ GLuint createQuad()
 	glBindVertexArray(0);
 
 	return VAO;
-    
+}
+
+void eliminarSimilares(float tolerancia)
+{
+	int x = iSelected % COLS;
+	int y = iSelected / COLS;
+	vec3 C = grid[y][x].color;
+	grid[y][x].eliminated = true;
+	for (int i = 0; i < ROWS; i++)
+	{
+		for (int j=0; j < COLS; j++)
+		{
+			vec3 O = grid[i][j].color;
+			float d = sqrt(pow(C.r-O.r,2) + pow(C.g-O.g,2) + pow(C.b-O.b,2));
+			float dd = d/dMax;
+			if (dd <= tolerancia)
+			{
+				grid[i][j].eliminated = true;
+			}
+
+		}
+	}
+	iSelected = -1;
 }
